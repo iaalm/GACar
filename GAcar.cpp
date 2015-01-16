@@ -3,7 +3,7 @@
 #include<math.h>
 
 #define LM (1)		//memory unit
-#define L1 (LM+2)	//layer 1 unit
+#define L1 (LM+6)	//layer 1 unit
 #define L2 (5)		//layer 2 unti
 #define L3 (LM+3)	//layer 3 unit
 #define LL (L1 * L2 + L2 * L3)
@@ -14,6 +14,7 @@
 
 #define VR (1)		// speed range
 #define WR (0.5)	// degree speed range
+#define SENSOR (1)
 
 #define PI (3.1415926)
 #define RAND(MAX) (random() * (double)(MAX) / RAND_MAX)
@@ -35,10 +36,37 @@ struct goal{
 	int n = 0;
 };
 
-int direction(float x1,float y1,float x2,float y2,float x3,float y3){
-
+int CrossProduct(float v1[],float v2[]){
+	return v1[0] * v2[1] - v1[1] * v2[0];
 }
 int intersect(float x1,float y1,float x2,float y2,float x3,float y3,float x4,float y4){
+	float tab[4][2];
+	tab[0][0] = x3 - x1;
+	tab[0][1] = y3 - y1;
+	tab[1][0] = x2 - x3;
+	tab[1][1] = y2 - y3;
+	tab[2][0] = x4 - x2;
+	tab[2][1] = y4 - y2;
+	tab[3][0] = x1 - x4;
+	tab[4][1] = y1 - y4;
+
+	float res;
+	int i;
+	res = CrossProduct(tab[3],tab[0]);
+	for(i = 0;i < 3;i++)
+		if(res * CrossProduct(tab[i],tab[i+1]) < 0)
+			return 0;
+
+	//printf("%f,%f %f,%f %f,%f %f,%f hit\n",x1,y1,x2,y2,x3,y3,x4,y4);
+
+	return 1;
+}
+
+int hit_wall(float x1,float y1,float x2,float y2,goal g){
+	int i;
+	for(i = 0;i < g.n;i++)
+		if(intersect(x1,y1,x2,y2,g.wall[i*4+0],g.wall[i*4+1],g.wall[i*4+2],g.wall[i*4+3]))
+			return 1;
 	return 0;
 }
 
@@ -54,6 +82,18 @@ void init_goal(goal* g){
 	float cx,cy;
 	if(g->n)
 		free(g->wall);
+	g->x = RAND(50) - 25;
+	g->y = RAND(50) - 25;
+
+	//
+	g->n = 1;
+	g->wall = (float*)malloc(4*g->n*sizeof(float));
+	g->wall[0] = g->x / 2 - 1;
+	g->wall[1] = g->y / 2;
+	g->wall[2] = g->x / 2 + 1;
+	g->wall[3] = g->y / 2;
+
+	/*
 	g->n = random() % 5;
 	g->wall = (float*)malloc(4*g->n*sizeof(float));
 	for(i = 0;i < g->n ;i++){
@@ -64,8 +104,7 @@ void init_goal(goal* g){
 		g->wall[i*4+2] = cx + RAND(5);
 		g->wall[i*4+3] = cy + RAND(5);
 	}
-	g->x = RAND(50);
-	g->y = RAND(50);
+	*/
 }
 
 int main(){
@@ -104,6 +143,11 @@ int main(){
 				//init input
 				memory_t[0][LM+0] = - x * cos(w) - y * sin(w);
 				memory_t[0][LM+1] = x * sin(w) - y * cos(w);
+				memory_t[0][LM+2] = hit;
+				memory_t[0][LM+3] = hit_wall(x,y,x+SENSOR*cos(w),y+SENSOR*sin(w),g[t.point]);
+				memory_t[0][LM+4] = hit_wall(x,y,x+SENSOR*cos(w - PI / 2),y+SENSOR*sin(w - PI / 2),g[t.point]);
+				memory_t[0][LM+5] = hit_wall(x,y,x+SENSOR*cos(w + PI / 2),y+SENSOR*sin(w + PI / 2),g[t.point]);
+
 				//calc output
 				for(j = 0;j < L2;j++){
 					memory_t[1][j] = 0;
@@ -132,15 +176,18 @@ int main(){
 				dx = x + v * cos(w);
 				dy = y + v * sin(w);
 				//if hit wall
-				hit = 0;
-				for(j = 0;j < g[t.point].n;j++)
-					if(intersect(x,y,dx,dy,g[t.point].wall[0],g[t.point].wall[1],g[t.point].wall[2],g[t.point].wall[3]))
-						hit = 1;
-				//go
-				x = dx;
-				y = dy;
+				if(hit_wall(x,y,dx,dy,g[t.point])){
+					hit = 1;
+					v = 0;
+				}
+				else{
+					//go
+					hit = 0;
+					x = dx;
+					y = dy;
+				}
 #ifdef DEBUG
-					printf("\n\t-><%f,%f>[%f,%f](%f,%f)",dv,dw,v,w,x,y);
+				printf("\n\t-><%f,%f>[%f,%f](%f,%f)",dv,dw,v,w,x,y);
 #endif
 				//if finish
 				if(abs(x)+abs(y) < 0.1){
@@ -165,7 +212,7 @@ int main(){
 			}
 			if(j != -1)
 				best[(generation + 1) & 1][j] = t;
-		}
+			}
 		//print score board
 		printf("%d:",generation);
 		for(i = 0;i < PARENT;i++)

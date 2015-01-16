@@ -4,11 +4,11 @@
 
 #define LM (1)		//memory unit
 #define L1 (LM+2)	//layer 1 unit
-#define L2 (10)		//layer 2 unti
+#define L2 (5)		//layer 2 unti
 #define L3 (LM+3)	//layer 3 unit
 #define LL (L1 * L2 + L2 * L3)
 #define PARENT (20)	//best parent
-#define SON (10)	//son per unit
+#define SON (5)	//son per unit
 #define STEP (1000)	// test step
 #define MG (1000)	//goal unit
 
@@ -16,6 +16,7 @@
 #define WR (0.5)	// degree speed range
 
 #define PI (3.1415926)
+#define RAND(MAX) (random() * (double)(MAX) / RAND_MAX)
 
 //#define DEBUG
 
@@ -30,21 +31,41 @@ struct car{
 
 struct goal{
 	float x,y;	//goal always at (0,0) (x,y) is the start point of car
-	float *wall[4];
-	int n;
+	float *wall;
+	int n = 0;
 };
+
+int direction(float x1,float y1,float x2,float y2,float x3,float y3){
+
+}
+int intersect(float x1,float y1,float x2,float y2,float x3,float y3,float x4,float y4){
+	return 0;
+}
 
 void init_car(car* c){
 	c->point = 0;
 	int i;
 	for(i = 0;i < LL;i++)
-		c->gene[i] = (random() - RAND_MAX / 2) * 1.0 / RAND_MAX;
+		c->gene[i] = RAND(1) - 0.5;
 }
 
 void init_goal(goal* g){
-	g->n = 0;
-	g->x = random() * 5.0 / RAND_MAX;
-	g->y = random() * 5.0 / RAND_MAX;
+	int i;
+	float cx,cy;
+	if(g->n)
+		free(g->wall);
+	g->n = random() % 5;
+	g->wall = (float*)malloc(4*g->n*sizeof(float));
+	for(i = 0;i < g->n ;i++){
+		cx = RAND(30);
+		cy = RAND(30);
+		g->wall[i*4+0] = cx + RAND(5);
+		g->wall[i*4+1] = cy + RAND(5);
+		g->wall[i*4+2] = cx + RAND(5);
+		g->wall[i*4+3] = cy + RAND(5);
+	}
+	g->x = RAND(50);
+	g->y = RAND(50);
 }
 
 int main(){
@@ -66,11 +87,11 @@ int main(){
 		for(I = 0;I < SON;I++)
 			for(i = 0;i < PARENT;i++){
 			t = best[generation & 1][i];
-			t.gene[random()%LL] = (random()-RAND_MAX/2) / 1.0 / RAND_MAX;
+			t.gene[random()%LL] = RAND(1) - 0.5;
 			t.point = 0;
 			l = STEP;
 			for(j = 0;j < LM;j++)
-				memory_t[0][j] = random() * 0.01 / RAND_MAX;
+				memory_t[0][j] = RAND(0.01);
 			//inti memory
 			x = g[0].x;
 			y = g[0].y;
@@ -113,7 +134,7 @@ int main(){
 				//if hit wall
 				hit = 0;
 				for(j = 0;j < g[t.point].n;j++)
-					if(false)
+					if(intersect(x,y,dx,dy,g[t.point].wall[0],g[t.point].wall[1],g[t.point].wall[2],g[t.point].wall[3]))
 						hit = 1;
 				//go
 				x = dx;
@@ -122,7 +143,7 @@ int main(){
 					printf("\n\t-><%f,%f>[%f,%f](%f,%f)",dv,dw,v,w,x,y);
 #endif
 				//if finish
-				if(abs(x)+abs(y) < 1){
+				if(abs(x)+abs(y) < 0.1){
 					t.point++;
 					x = g[t.point].x;
 					y = g[t.point].y;
@@ -131,6 +152,9 @@ int main(){
 #endif
 				}
 			}
+#ifdef DEBUG
+			putchar(10);
+#endif
 			//if better
 			j = -1;k = t.point;
 			for(l = 0;l < PARENT;l++){

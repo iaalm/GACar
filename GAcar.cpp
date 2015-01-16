@@ -7,10 +7,11 @@
 #define L2 (5)		//layer 2 unti
 #define L3 (LM+3)	//layer 3 unit
 #define LL (L1 * L2 + L2 * L3)
-#define PARENT (20)	//best parent
+#define PARENT (10)	//best parent
 #define SON (5)	//son per unit
-#define STEP (1000)	// test step
-#define MG (1000)	//goal unit
+#define STEP (200)	// test step
+#define MG (200)	//goal unit
+#define GEN (1000)
 
 #define VR (1)		// speed range
 #define WR (0.5)	// degree speed range
@@ -20,6 +21,7 @@
 #define RAND(MAX) (random() * (double)(MAX) / RAND_MAX)
 
 //#define DEBUG
+#define DEBUG_W
 
 double active_function(double t){
 	return 1/(1+exp(-t));
@@ -112,12 +114,18 @@ int main(){
 	float memory_t[2][20];
 	float v,w,x,y,dx,dy,dv,dw;
 	float hit;
+#ifdef DEBUG_W
+	FILE *fp;
+	char filename[2];
+	filename[1] = 0;
+
+#endif
 	car best[2][PARENT],t;
 	goal g[MG];
 	for(i = 0;i < PARENT;i++)
 		init_car(best[0]+i);
 	
-	for(generation = 0; generation < 100;generation++){
+	for(generation = 0; generation < GEN;generation++){
 		for(i = 0;i < PARENT;i++){
 			best[(generation + 1) & 1][i].point = -1;
 		}
@@ -126,7 +134,8 @@ int main(){
 		for(I = 0;I < SON;I++)
 			for(i = 0;i < PARENT;i++){
 			t = best[generation & 1][i];
-			t.gene[random()%LL] = RAND(1) - 0.5;
+			if(I != 0)
+				t.gene[random()%LL] = RAND(1) - 0.5;
 			t.point = 0;
 			l = STEP;
 			for(j = 0;j < LM;j++)
@@ -136,8 +145,18 @@ int main(){
 			y = g[0].y;
 			v = 0;
 			w = 0;
+#ifdef DEBUG_W
+			if(generation % (GEN / 4) == 0 && I == 0){
+				filename[0] = generation / (GEN / 4) + '0';
+				if(i == 0)
+					fp = fopen(filename,"w");
+				else
+					fp = fopen(filename,"a");
+				fprintf(fp,"%f\t%f\n",x,y);
+			}
+#endif
 #ifdef DEBUG
-					printf("(%f,%f)",x,y);
+			printf("(%f,%f)",x,y);
 #endif
 			while(l--){
 				//init input
@@ -186,6 +205,11 @@ int main(){
 					x = dx;
 					y = dy;
 				}
+#ifdef DEBUG_W
+				if(generation % (GEN / 4) == 0 && I == 0){
+					fprintf(fp,"\t%f\t%f\n",x,y);
+				}
+#endif
 #ifdef DEBUG
 				printf("\n\t-><%f,%f>[%f,%f](%f,%f)",dv,dw,v,w,x,y);
 #endif
@@ -194,6 +218,11 @@ int main(){
 					t.point++;
 					x = g[t.point].x;
 					y = g[t.point].y;
+#ifdef DEBUG_W
+					if(generation % (GEN / 4) == 0 && I == 0){
+						fprintf(fp,"%f\t%f\n",x,y);
+					}
+#endif
 #ifdef DEBUG
 					printf("\n(%f,%f)",x,y);
 #endif
@@ -212,6 +241,11 @@ int main(){
 			}
 			if(j != -1)
 				best[(generation + 1) & 1][j] = t;
+#ifdef DEBUG_W
+			if(generation % (GEN / 4) == 0 && I == 0){
+				fclose(fp);
+			}
+#endif
 			}
 		//print score board
 		printf("%d:",generation);
